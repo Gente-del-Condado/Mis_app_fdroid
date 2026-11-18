@@ -98,6 +98,28 @@ class StoreTest(unittest.TestCase):
                 root=Path(tmp);(root/'store.json').write_text(json.dumps(value))
                 with self.assertRaises(ValueError):store.settings(root)
 
+    def test_catalog_icon_is_copied_without_using_or_resigning_the_apk(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            metadata = Path(tmp) / 'metadata'
+            store.copy_app_icon(store.ROOT, metadata, self.app['id'])
+            relative = Path(self.app['id']) / 'en-US/images/icon.png'
+            self.assertEqual((metadata / relative).read_bytes(),
+                             (store.ROOT / 'metadata' / relative).read_bytes())
+            with self.assertRaises(ValueError):
+                store.copy_app_icon(Path(tmp), Path(tmp) / 'other', 'org.example.missing')
+
+    def test_missing_corrupt_or_escaping_catalog_icons_block_publication(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / 'repo'; repo.mkdir()
+            icon = repo / 'icon.png'; icon.write_bytes(b'fixture')
+            data = {'metadata': {'icon': {'en-US': {'name': '/icon.png',
+                    'sha256': store.digest(icon), 'size': icon.stat().st_size}}}}
+            store.verify_icons(repo, {'org.example.app': data})
+            for invalid in ({}, {'en-US': dict(data['metadata']['icon']['en-US'], sha256='a'*64)},
+                            {'en-US': dict(data['metadata']['icon']['en-US'], name='/../icon.png')}):
+                with self.subTest(icon=invalid), self.assertRaises(ValueError):
+                    store.verify_icons(repo, {'org.example.app': {'metadata': {'icon': invalid}}})
+
     def test_workflow_uploads_only_site_and_never_uses_the_android_key(self):
         source=(store.ROOT/'.github/workflows/publish.yml').read_text()
         self.assertIn('FDROID_REPO_SIGNING_BUNDLE',source)

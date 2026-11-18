@@ -155,6 +155,29 @@ def check_apk(path, item, app, sdk):
         raise ValueError('El manifiesto real de la APK no coincide')
 
 
+def copy_app_icon(root, metadata, app_id):
+    # El catálogo necesita un PNG independiente del icono adaptativo de la APK.
+    relative = Path(app_id) / 'en-US/images/icon.png'
+    source = root / 'metadata' / relative
+    if source.is_symlink() or not source.is_file():
+        raise ValueError('Falta el PNG de catálogo para ' + app_id)
+    target = metadata / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+
+
+def verify_icons(repo, packages):
+    for app in packages.values():
+        icons = app['metadata'].get('icon', {})
+        if not icons:
+            raise ValueError('El índice no contiene el icono de una aplicación')
+        for icon in icons.values():
+            path = (repo / icon['name'].lstrip('/')).resolve()
+            if (repo.resolve() not in path.parents or not path.is_file()
+                    or digest(path) != icon['sha256'] or path.stat().st_size != icon['size']):
+                raise ValueError('El icono del catálogo no coincide con el índice firmado')
+
+
 def verify_index(repo, fingerprint, expected):
     from fdroidserver import common, index
     common.config = dict(common.default_config, jarsigner=str(Path(os.environ['JAVA_HOME']) / 'bin/jarsigner'))
@@ -163,6 +186,7 @@ def verify_index(repo, fingerprint, expected):
     if entry['index']['sha256'] != digest(payload):
         raise ValueError('El índice v2 no coincide con su entrada firmada')
     value = json.loads(payload.read_text())
+    verify_icons(repo, value['packages'])
     actual = {}
     for app_id, app in value['packages'].items():
         for version in app['versions'].values():
@@ -208,6 +232,7 @@ def build(config, proposed, output, sdk, signing, root=ROOT):
                     'Name': app['name'], 'Summary': app['summary'], 'Description': app['description'],
                     'CurrentVersion': newest['version'], 'CurrentVersionCode': newest['version_code'],
                     'AllowedAPKSigningKeys': [app['certificate_sha256']]}
+            copy_app_icon(root, metadata, app_id)
             (metadata / (app_id+'.yml')).write_text(json.dumps(info, ensure_ascii=False, indent=2))
         shutil.copy2(root / 'repo-icon.png', work / 'repo-icon.png')
         private_config = {'repo_url': config['url'], 'repo_name': config['name'], 'repo_description': config['description'],

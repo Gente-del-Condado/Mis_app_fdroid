@@ -40,6 +40,11 @@ Los [fuentes completos](https://github.com/Gente-del-Condado/headscale_gateway_y
 y las licencias siguen disponibles. [Manual de Android](https://gente-del-condado.github.io/headscale_gateway_ynh/ANDROID_USO.html).
 Play Store permanece solo preparado; este flujo no envía aplicaciones allí.
 
+El icono del catálogo se mantiene como PNG en
+`metadata/org.headscalegateway.android/en-US/images/icon.png`, reutilizando el
+icono existente del proyecto. El generador lo incorpora al índice y comprueba
+su archivo y suma antes de publicar; no modifica el icono ni la firma de la APK.
+
 ## Origen y publicación automática
 
 Las fuentes de esta tienda se mantienen en `packaging/fdroid-store/` del principal
