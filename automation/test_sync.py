@@ -103,6 +103,8 @@ class StoreTest(unittest.TestCase):
         self.assertIn('FDROID_REPO_SIGNING_BUNDLE',source)
         self.assertNotIn('ANDROID_SIGNING_BUNDLE',source)
         self.assertIn('fdroid-store/site',source)
+        job_env = source.split('    env:', 1)[1].split('    steps:', 1)[0]
+        self.assertNotIn('runner.', job_env)
         self.assertIn("steps.plan.outputs.changed == 'true'",source)
         self.assertIn("cron: '43 * * * *'",source)
 

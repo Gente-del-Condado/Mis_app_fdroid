@@ -17,7 +17,7 @@ jobs:
     outputs:
       changed: ${{ steps.plan.outputs.changed }}
     env:
-      FDROID_WORK: ${{ runner.temp }}/fdroid-store
+      FDROID_WORK: /tmp/fdroid-store
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         if: steps.plan.outputs.changed == 'true'
         with:
-          path: ${{ runner.temp }}/fdroid-store/site
+          path: /tmp/fdroid-store/site
   deploy:
     needs: build
     if: needs.build.outputs.changed == 'true'
