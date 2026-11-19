@@ -2,6 +2,7 @@
 import copy
 import importlib.util
 import json
+import io
 from pathlib import Path
 import tempfile
 import unittest
@@ -119,6 +120,28 @@ class StoreTest(unittest.TestCase):
                             {'en-US': dict(data['metadata']['icon']['en-US'], name='/../icon.png')}):
                 with self.subTest(icon=invalid), self.assertRaises(ValueError):
                     store.verify_icons(repo, {'org.example.app': {'metadata': {'icon': invalid}}})
+
+    def test_automatic_token_is_only_used_on_the_own_github_api(self):
+        with patch.dict(store.os.environ, {'GITHUB_TOKEN': 'fixture-token'}):
+            for url, authenticated in [
+                ('https://api.github.com/repos/Gente-del-Condado/app/releases', True),
+                ('https://github.com/Gente-del-Condado/app/releases', False),
+                ('https://api.github.com.attacker.invalid/repos/Gente-del-Condado/app', False),
+                ('http://api.github.com/repos/Gente-del-Condado/app', False),
+                ('https://api.github.com/repos/foreign/app', False),
+                ('https://gente-del-condado.github.io/Mis_app_fdroid/fdroid/repo/store-state.json', False)]:
+                with self.subTest(url=url), patch.object(store.urllib.request, 'build_opener') as factory:
+                    factory.return_value.open.return_value = io.StringIO('{}')
+                    store.read_json(url)
+                    request = factory.return_value.open.call_args.args[0]
+                    self.assertEqual(request.get_header('Authorization') is not None, authenticated)
+
+    def test_redirect_removes_api_credentials(self):
+        request = store.urllib.request.Request('https://api.github.com/repos/Gente-del-Condado/app',
+                                               headers={'Authorization': 'Bearer fixture-token'})
+        redirected = store.PublicRedirect().redirect_request(request, None, 302, 'redirect', {},
+                                                              'https://downloads.example.test/report.json')
+        self.assertIsNone(redirected.get_header('Authorization'))
 
     def test_workflow_uploads_only_site_and_never_uses_the_android_key(self):
         source=(store.ROOT/'.github/workflows/publish.yml').read_text()

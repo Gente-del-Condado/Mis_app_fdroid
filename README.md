@@ -84,7 +84,9 @@ conserva una copia privada fuera de Git para recuperación. No crear otra clave
 si se pierde el acceso a Actions: cambiaría la identidad de la tienda.
 
 GitHub Pages debe usar **GitHub Actions** como origen. El workflow utiliza
-`GITHUB_TOKEN` para publicar Pages; no necesita un token personal ni acceso al
+`GITHUB_TOKEN` para publicar Pages y consultar la API pública de GitHub sin
+agotar el límite anónimo. La credencial de lectura solo se envía a la API de los
+repositorios propios y se elimina en cualquier redirección; no necesita un token personal ni acceso al
 principal privado. Solo se sube `site/`, que excluye claves, contraseñas y
 configuración privada. `LICENSE` cubre esta automatización; cada aplicación
 conserva su licencia y sus fuentes correspondientes.

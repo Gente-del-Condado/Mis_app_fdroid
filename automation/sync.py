@@ -13,6 +13,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import urllib.parse
 
 ROOT = Path(__file__).resolve().parents[1]
 HEX = re.compile(r'[0-9a-fA-F]{64}')
@@ -24,9 +25,24 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+class PublicRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is not None:
+            # Una redirección nunca hereda la credencial de la API de GitHub.
+            redirected.remove_header('Authorization')
+        return redirected
+
+
 def read_json(url):
-    # Todo es público. No se transmite ningún token a descargas ni redirecciones.
-    with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'Gente-del-Condado-FDroid'}), timeout=45) as response:
+    headers = {'User-Agent': 'Gente-del-Condado-FDroid'}
+    parsed = urllib.parse.urlsplit(url)
+    token = os.environ.get('GITHUB_TOKEN')
+    if (token and parsed.scheme == 'https' and parsed.netloc == 'api.github.com'
+            and parsed.path.startswith('/repos/Gente-del-Condado/')):
+        headers['Authorization'] = 'Bearer ' + token
+    opener = urllib.request.build_opener(PublicRedirect())
+    with opener.open(urllib.request.Request(url, headers=headers), timeout=45) as response:
         return json.load(response)
 
 
